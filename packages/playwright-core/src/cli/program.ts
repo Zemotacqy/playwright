@@ -181,13 +181,13 @@ program
           }
         } else if (options.list) {
           // --dry-run option takes precedence over --list
-          // const browsers: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await registry.list();
-          // for (const browser of browsers) {
-          //   console.log(`Browser: ${browser.browserName}`);
-          //   console.log(` Version: ${browser.browserVersion}`);
-          //   console.log(` Path: ${browser.browserPath}`);
-          //   console.log(``);
-          // }
+          const browsers: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await registry.list();
+          for (const browser of browsers) {
+            console.log(`Browser: ${browser.browserName}`);
+            console.log(` Version: ${browser.browserVersion}`);
+            console.log(` Path: ${browser.browserPath}`);
+            console.log(``);
+          }
         } else {
           const forceReinstall = hasNoArguments ? false : !!options.force;
           await registry.install(executables, forceReinstall);

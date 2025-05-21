@@ -1043,7 +1043,7 @@ export class Registry {
       await fs.promises.writeFile(path.join(linksDir, calculateSha1(PACKAGE_PATH)), PACKAGE_PATH);
 
       // Remove stale browsers.
-      const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await this._traverse(linksDir);
+      const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
       await this._delete(browserList);
 
       // Install browsers for this package.
@@ -1109,7 +1109,7 @@ export class Registry {
     }
 
     // Remove stale browsers.
-    const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await this._traverse(linksDir);
+    const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
     await this._delete(browserList);
 
     return {
@@ -1118,8 +1118,8 @@ export class Registry {
   }
 
   async list() {
-    // const linksDir = path.join(registryDirectory, '.links');
-    // return await this._traverseBrowserInstallations(linksDir);
+    const linksDir = path.join(registryDirectory, '.links');
+    return await this._traverseBrowserInstallations(linksDir);
   }
 
   async validateHostRequirementsForExecutablesIfNeeded(executables: Executable[], sdkLanguage: string) {
@@ -1256,9 +1256,7 @@ export class Registry {
     }
   }
 
-  private async _traverse(linksDir: string) {
-    // 1. Collect used downloads and package descriptors.
-    const usedBrowserPaths: Set<string> = new Set();
+  private async _traverseBrowserInstallations(linksDir: string) {
     const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = [];
     for (const fileName of await fs.promises.readdir(linksDir)) {
       const linkPath = path.join(linksDir, fileName);
@@ -1278,15 +1276,6 @@ export class Registry {
             continue;
           const usedBrowserPath = descriptor.dir;
           const browserRevision = parseInt(descriptor.revision, 10);
-          // Old browser installations don't have marker file.
-          // We switched chromium from 999999 to 1000, 300000 is the new Y2K.
-          const shouldHaveMarkerFile = (browserName === 'chromium' && (browserRevision >= 786218 || browserRevision < 300000)) ||
-              (browserName === 'firefox' && browserRevision >= 1128) ||
-              (browserName === 'webkit' && browserRevision >= 1307) ||
-              // All new applications have a marker file right away.
-              (browserName !== 'firefox' && browserName !== 'chromium' && browserName !== 'webkit');
-          if (!shouldHaveMarkerFile || (await existsAsync(browserDirectoryToMarkerFilePath(usedBrowserPath))))
-            usedBrowserPaths.add(usedBrowserPath);
 
           browserList.push({
             browserName,
@@ -1298,13 +1287,10 @@ export class Registry {
         await fs.promises.unlink(linkPath).catch(e => {});
       }
     }
-    console.log(`All Browsers: ${JSON.stringify(browserList)}`);  // eslint-disable-line no-console
-    console.log(`usedBrowserPaths: ${JSON.stringify(usedBrowserPaths)}`);  // eslint-disable-line no-console
     return browserList;
   }
 
   private async _delete(browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }>) {
-    // 2. Delete all unused browsers.
     if (!getAsBooleanFromENV('PLAYWRIGHT_SKIP_BROWSER_GC')) {
       const usedBrowserPaths: Set<string> = new Set();
       for (const browser of browserList) {
@@ -1321,6 +1307,7 @@ export class Registry {
         if (!shouldHaveMarkerFile || (await existsAsync(browserDirectoryToMarkerFilePath(usedBrowserPath))))
           usedBrowserPaths.add(usedBrowserPath);
       }
+
       let downloadedBrowsers = (await fs.promises.readdir(registryDirectory)).map(file => path.join(registryDirectory, file));
       downloadedBrowsers = downloadedBrowsers.filter(file => isBrowserDirectory(file));
       const directories = new Set<string>(downloadedBrowsers);
