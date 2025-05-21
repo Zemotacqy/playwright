@@ -1043,8 +1043,7 @@ export class Registry {
       await fs.promises.writeFile(path.join(linksDir, calculateSha1(PACKAGE_PATH)), PACKAGE_PATH);
 
       // Remove stale browsers.
-      const browserList = await this._traverseBrowserInstallations(linksDir);
-      await this._deleteUnusedBrowsers(browserList);
+      await this._validateInstallationCache(linksDir);
 
       // Install browsers for this package.
       for (const executable of executables) {
@@ -1109,8 +1108,7 @@ export class Registry {
     }
 
     // Remove stale browsers.
-    const browserList = await this._traverseBrowserInstallations(linksDir);
-    await this._deleteUnusedBrowsers(browserList);
+    await this._validateInstallationCache(linksDir);
 
     return {
       numberOfBrowsersLeft: (await fs.promises.readdir(registryDirectory).catch(() => [])).filter(browserDirectory => isBrowserDirectory(browserDirectory)).length
@@ -1118,8 +1116,8 @@ export class Registry {
   }
 
   async list() {
-    const linksDir = path.join(registryDirectory, '.links');
-    return await this._traverseBrowserInstallations(linksDir);
+    // const linksDir = path.join(registryDirectory, '.links');
+    // return await this._traverseBrowserInstallations(linksDir);
   }
 
   async validateHostRequirementsForExecutablesIfNeeded(executables: Executable[], sdkLanguage: string) {
@@ -1256,8 +1254,9 @@ export class Registry {
     }
   }
 
-  private async _traverseBrowserInstallations(linksDir: string) {
-    const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = [];
+  private async _validateInstallationCache(linksDir: string) {
+    // 1. Collect used downloads and package descriptors.
+    const usedBrowserPaths: Set<string> = new Set();
     for (const fileName of await fs.promises.readdir(linksDir)) {
       const linkPath = path.join(linksDir, fileName);
       let linkTarget = '';
@@ -1276,48 +1275,32 @@ export class Registry {
             continue;
           const usedBrowserPath = descriptor.dir;
           const browserRevision = parseInt(descriptor.revision, 10);
-
-          browserList.push({
-            browserName,
-            browserVersion: browserRevision,
-            browserPath: usedBrowserPath
-          });
+          // Old browser installations don't have marker file.
+          // We switched chromium from 999999 to 1000, 300000 is the new Y2K.
+          const shouldHaveMarkerFile = (browserName === 'chromium' && (browserRevision >= 786218 || browserRevision < 300000)) ||
+              (browserName === 'firefox' && browserRevision >= 1128) ||
+              (browserName === 'webkit' && browserRevision >= 1307) ||
+              // All new applications have a marker file right away.
+              (browserName !== 'firefox' && browserName !== 'chromium' && browserName !== 'webkit');
+          if (!shouldHaveMarkerFile || (await existsAsync(browserDirectoryToMarkerFilePath(usedBrowserPath))))
+            usedBrowserPaths.add(usedBrowserPath);
         }
       } catch (e) {
         await fs.promises.unlink(linkPath).catch(e => {});
       }
     }
-    logPolitely(`browserPaths: ${JSON.stringify(browserList)}`);
 
-    return browserList;
-  }
-
-  private async _deleteUnusedBrowsers(browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }>) {
-    if (getAsBooleanFromENV('PLAYWRIGHT_SKIP_BROWSER_GC'))
-      return;
-
-    const usedBrowserPaths: Set<string> = new Set();
-    for (const browser of browserList) {
-      // Old browser installations don't have marker file.
-      // We switched chromium from 999999 to 1000, 300000 is the new Y2K.
-      const shouldHaveMarkerFile = (browser.browserName === 'chromium' && (browser.browserVersion >= 786218 || browser.browserVersion < 300000)) ||
-        (browser.browserName === 'firefox' && browser.browserVersion >= 1128) ||
-        (browser.browserName === 'webkit' && browser.browserVersion >= 1307) ||
-        // All new applications have a marker file right away.
-        (browser.browserName !== 'firefox' && browser.browserName !== 'chromium' && browser.browserName !== 'webkit');
-      if (!shouldHaveMarkerFile || (await existsAsync(browserDirectoryToMarkerFilePath(browser.browserName))))
-        usedBrowserPaths.add(browser.browserPath);
+    // 2. Delete all unused browsers.
+    if (!getAsBooleanFromENV('PLAYWRIGHT_SKIP_BROWSER_GC')) {
+      let downloadedBrowsers = (await fs.promises.readdir(registryDirectory)).map(file => path.join(registryDirectory, file));
+      downloadedBrowsers = downloadedBrowsers.filter(file => isBrowserDirectory(file));
+      const directories = new Set<string>(downloadedBrowsers);
+      for (const browserDirectory of usedBrowserPaths)
+        directories.delete(browserDirectory);
+      for (const directory of directories)
+        logPolitely('Removing unused browser at ' + directory);
+      await removeFolders([...directories]);
     }
-
-    let downloadedBrowsers = (await fs.promises.readdir(registryDirectory)).map(file => path.join(registryDirectory, file));
-    downloadedBrowsers = downloadedBrowsers.filter(file => isBrowserDirectory(file));
-    const directories = new Set<string>(downloadedBrowsers);
-    for (const browserDirectory of usedBrowserPaths)
-      directories.delete(browserDirectory);
-
-    for (const directory of directories)
-      logPolitely('Removing unused browser at ' + directory);
-    await removeFolders([...directories]);
   }
 }
 
