@@ -1043,7 +1043,7 @@ export class Registry {
       await fs.promises.writeFile(path.join(linksDir, calculateSha1(PACKAGE_PATH)), PACKAGE_PATH);
 
       // Remove stale browsers.
-      const [usedBrowserPaths, browserList] = await this._traverse(linksDir) as [Set<string>, Array<{ browserName: string, browserVersion: number, browserPath: string }>];
+      const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await this._traverse(linksDir);
       await this._delete(browserList);
 
       // Install browsers for this package.
@@ -1109,7 +1109,7 @@ export class Registry {
     }
 
     // Remove stale browsers.
-    const [usedBrowserPaths, browserList] = await this._traverse(linksDir) as [Set<string>, Array<{ browserName: string, browserVersion: number, browserPath: string }>];
+    const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await this._traverse(linksDir);
     await this._delete(browserList);
 
     return {
@@ -1300,7 +1300,7 @@ export class Registry {
     }
     console.log(`All Browsers: ${JSON.stringify(browserList)}`);  // eslint-disable-line no-console
     console.log(`usedBrowserPaths: ${JSON.stringify(usedBrowserPaths)}`);  // eslint-disable-line no-console
-    return [usedBrowserPaths, browserList];
+    return browserList;
   }
 
   private async _delete(browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }>) {
