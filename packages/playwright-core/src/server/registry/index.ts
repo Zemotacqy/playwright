@@ -1324,7 +1324,7 @@ export class Registry {
       let downloadedBrowsers = (await fs.promises.readdir(registryDirectory)).map(file => path.join(registryDirectory, file));
       downloadedBrowsers = downloadedBrowsers.filter(file => isBrowserDirectory(file));
       const directories = new Set<string>(downloadedBrowsers);
-      for (const browserDirectory of usedBrowserPaths)
+      for (const browserDirectory of usedBrowserPathsRecal)
         directories.delete(browserDirectory);
       for (const directory of directories)
         logPolitely('Removing unused browser at ' + directory);
