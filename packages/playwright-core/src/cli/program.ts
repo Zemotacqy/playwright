@@ -181,11 +181,16 @@ program
           }
         } else if (options.list) {
           // --dry-run option takes precedence over --list
-          const browsers: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await registry.list();
-          for (const browser of browsers) {
-            console.log(`Browser: ${browser.browserName}`);
-            console.log(` Version: ${browser.browserVersion}`);
-            console.log(` Path: ${browser.browserPath}`);
+          const browsersMap = await registry.list();
+          for (const browserName in browsersMap) {
+            console.log(`Browser: ${browserName}`);
+            const browsers = browsersMap[browserName];
+            for (const browser of browsers) {
+              console.log(` Version: ${browser.browserVersion}`);
+              console.log(` Directory: ${browser.hostDir}`);
+              console.log(` Location: ${browser.browserPath}`);
+              console.log(``);
+            }
             console.log(``);
           }
         } else {

@@ -36,6 +36,11 @@ test('install command should work', async ({ exec, checkInstalledSoftwareOnDisk 
     await checkInstalledSoftwareOnDisk(['chromium', 'chromium-headless-shell', 'ffmpeg', 'firefox', 'webkit', ...extraInstalledSoftware]);
   });
 
+  await test.step('playwright install', async () => {
+    const result = await exec('npx playwright install --list');
+    expect(result).toEqual('hello');
+  });
+
   await exec('node sanity.js playwright', { env: { PLAYWRIGHT_BROWSERS_PATH: '0' } });
   await exec('node sanity.js playwright chromium firefox webkit');
 

@@ -1043,8 +1043,8 @@ export class Registry {
       await fs.promises.writeFile(path.join(linksDir, calculateSha1(PACKAGE_PATH)), PACKAGE_PATH);
 
       // Remove stale browsers.
-      const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
-      await this._delete(browserList);
+      const browserList: Array<{ hostDir: string, browserName: string, browserVersion: number, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
+      await this._deleteStaleBrowsers(browserList);
 
       // Install browsers for this package.
       for (const executable of executables) {
@@ -1109,8 +1109,8 @@ export class Registry {
     }
 
     // Remove stale browsers.
-    const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
-    await this._delete(browserList);
+    const browserList: Array<{ hostDir: string, browserName: string, browserVersion: number, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
+    await this._deleteStaleBrowsers(browserList);
 
     return {
       numberOfBrowsersLeft: (await fs.promises.readdir(registryDirectory).catch(() => [])).filter(browserDirectory => isBrowserDirectory(browserDirectory)).length
@@ -1119,7 +1119,23 @@ export class Registry {
 
   async list() {
     const linksDir = path.join(registryDirectory, '.links');
-    return await this._traverseBrowserInstallations(linksDir);
+    const browsers: Array<{ browserName: string, browserVersion: number, hostDir: string, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
+
+    // Group browsers by browserName
+    const groupedBrowsers: Record<string, Array<{ browserVersion: number, hostDir: string, browserPath: string }>> = {};
+
+    browsers.forEach(browser => {
+      if (!groupedBrowsers[browser.browserName])
+        groupedBrowsers[browser.browserName] = [];
+
+      groupedBrowsers[browser.browserName].push({
+        hostDir: browser.hostDir,
+        browserVersion: browser.browserVersion,
+        browserPath: browser.browserPath
+      });
+    });
+
+    return groupedBrowsers;
   }
 
   async validateHostRequirementsForExecutablesIfNeeded(executables: Executable[], sdkLanguage: string) {
@@ -1257,7 +1273,7 @@ export class Registry {
   }
 
   private async _traverseBrowserInstallations(linksDir: string) {
-    const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = [];
+    const browserList: Array<{ hostDir: string, browserName: string, browserVersion: number, browserPath: string }> = [];
     for (const fileName of await fs.promises.readdir(linksDir)) {
       const linkPath = path.join(linksDir, fileName);
       let linkTarget = '';
@@ -1274,10 +1290,12 @@ export class Registry {
           const descriptor = descriptors.find(d => d.name === browserName);
           if (!descriptor)
             continue;
+
           const usedBrowserPath = descriptor.dir;
           const browserRevision = parseInt(descriptor.revision, 10);
 
           browserList.push({
+            hostDir: linkTarget,
             browserName,
             browserVersion: browserRevision,
             browserPath: usedBrowserPath
@@ -1290,7 +1308,7 @@ export class Registry {
     return browserList;
   }
 
-  private async _delete(browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }>) {
+  private async _deleteStaleBrowsers(browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }>) {
     if (!getAsBooleanFromENV('PLAYWRIGHT_SKIP_BROWSER_GC')) {
       const usedBrowserPaths: Set<string> = new Set();
       for (const browser of browserList) {
