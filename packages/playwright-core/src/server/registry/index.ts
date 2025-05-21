@@ -1298,8 +1298,8 @@ export class Registry {
         await fs.promises.unlink(linkPath).catch(e => {});
       }
     }
-    logPolitely(`All Browsers: ${JSON.stringify(browserList)}`);
-    logPolitely(`usedBrowserPaths: ${JSON.stringify(usedBrowserPaths)}`);
+    console.log(`All Browsers: ${JSON.stringify(browserList)}`);  // eslint-disable-line no-console
+    console.log(`usedBrowserPaths: ${JSON.stringify(usedBrowserPaths)}`);  // eslint-disable-line no-console
     return usedBrowserPaths;
   }
 
