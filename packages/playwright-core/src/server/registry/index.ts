@@ -1044,7 +1044,7 @@ export class Registry {
 
       // Remove stale browsers.
       const [usedBrowserPaths, browserList] = await this._traverse(linksDir) as [Set<string>, Array<{ browserName: string, browserVersion: number, browserPath: string }>];
-      await this._delete(usedBrowserPaths, browserList);
+      await this._delete(browserList);
 
       // Install browsers for this package.
       for (const executable of executables) {
@@ -1110,7 +1110,7 @@ export class Registry {
 
     // Remove stale browsers.
     const [usedBrowserPaths, browserList] = await this._traverse(linksDir) as [Set<string>, Array<{ browserName: string, browserVersion: number, browserPath: string }>];
-    await this._delete(usedBrowserPaths, browserList);
+    await this._delete(browserList);
 
     return {
       numberOfBrowsersLeft: (await fs.promises.readdir(registryDirectory).catch(() => [])).filter(browserDirectory => isBrowserDirectory(browserDirectory)).length
@@ -1303,10 +1303,10 @@ export class Registry {
     return [usedBrowserPaths, browserList];
   }
 
-  private async _delete(usedBrowserPaths: Set<string>, browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }>) {
+  private async _delete(browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }>) {
     // 2. Delete all unused browsers.
     if (!getAsBooleanFromENV('PLAYWRIGHT_SKIP_BROWSER_GC')) {
-      const usedBrowserPathsRecal: Set<string> = new Set();
+      const usedBrowserPaths: Set<string> = new Set();
       for (const browser of browserList) {
         const browserName = browser.browserName;
         const browserRevision = browser.browserVersion;
@@ -1319,12 +1319,12 @@ export class Registry {
             // All new applications have a marker file right away.
             (browserName !== 'firefox' && browserName !== 'chromium' && browserName !== 'webkit');
         if (!shouldHaveMarkerFile || (await existsAsync(browserDirectoryToMarkerFilePath(usedBrowserPath))))
-          usedBrowserPathsRecal.add(usedBrowserPath);
+          usedBrowserPaths.add(usedBrowserPath);
       }
       let downloadedBrowsers = (await fs.promises.readdir(registryDirectory)).map(file => path.join(registryDirectory, file));
       downloadedBrowsers = downloadedBrowsers.filter(file => isBrowserDirectory(file));
       const directories = new Set<string>(downloadedBrowsers);
-      for (const browserDirectory of usedBrowserPathsRecal)
+      for (const browserDirectory of usedBrowserPaths)
         directories.delete(browserDirectory);
       for (const directory of directories)
         logPolitely('Removing unused browser at ' + directory);
