@@ -1259,6 +1259,7 @@ export class Registry {
   private async _traverse(linksDir: string) {
     // 1. Collect used downloads and package descriptors.
     const usedBrowserPaths: Set<string> = new Set();
+    const browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }> = [];
     for (const fileName of await fs.promises.readdir(linksDir)) {
       const linkPath = path.join(linksDir, fileName);
       let linkTarget = '';
@@ -1286,11 +1287,19 @@ export class Registry {
               (browserName !== 'firefox' && browserName !== 'chromium' && browserName !== 'webkit');
           if (!shouldHaveMarkerFile || (await existsAsync(browserDirectoryToMarkerFilePath(usedBrowserPath))))
             usedBrowserPaths.add(usedBrowserPath);
+
+          browserList.push({
+            browserName,
+            browserVersion: browserRevision,
+            browserPath: usedBrowserPath
+          });
         }
       } catch (e) {
         await fs.promises.unlink(linkPath).catch(e => {});
       }
     }
+    logPolitely(`All Browsers: ${JSON.stringify(browserList)}`);
+    logPolitely(`usedBrowserPaths: ${JSON.stringify(usedBrowserPaths)}`);
     return usedBrowserPaths;
   }
 
