@@ -1287,6 +1287,7 @@ export class Registry {
         await fs.promises.unlink(linkPath).catch(e => {});
       }
     }
+    logPolitely(`browserPaths: ${JSON.stringify(browserList)}`);
 
     return browserList;
   }
