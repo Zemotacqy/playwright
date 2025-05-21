@@ -1043,7 +1043,8 @@ export class Registry {
       await fs.promises.writeFile(path.join(linksDir, calculateSha1(PACKAGE_PATH)), PACKAGE_PATH);
 
       // Remove stale browsers.
-      await this._validateInstallationCache(linksDir);
+      const usedBrowserPaths: Set<string> = await this._traverse(linksDir);
+      await this._delete(usedBrowserPaths);
 
       // Install browsers for this package.
       for (const executable of executables) {
@@ -1108,7 +1109,8 @@ export class Registry {
     }
 
     // Remove stale browsers.
-    await this._validateInstallationCache(linksDir);
+    const usedBrowserPaths: Set<string> = await this._traverse(linksDir);
+    await this._delete(usedBrowserPaths);
 
     return {
       numberOfBrowsersLeft: (await fs.promises.readdir(registryDirectory).catch(() => [])).filter(browserDirectory => isBrowserDirectory(browserDirectory)).length
@@ -1254,7 +1256,7 @@ export class Registry {
     }
   }
 
-  private async _validateInstallationCache(linksDir: string) {
+  private async _traverse(linksDir: string) {
     // 1. Collect used downloads and package descriptors.
     const usedBrowserPaths: Set<string> = new Set();
     for (const fileName of await fs.promises.readdir(linksDir)) {
@@ -1289,7 +1291,10 @@ export class Registry {
         await fs.promises.unlink(linkPath).catch(e => {});
       }
     }
+    return usedBrowserPaths;
+  }
 
+  private async _delete(usedBrowserPaths: Set<string>) {
     // 2. Delete all unused browsers.
     if (!getAsBooleanFromENV('PLAYWRIGHT_SKIP_BROWSER_GC')) {
       let downloadedBrowsers = (await fs.promises.readdir(registryDirectory)).map(file => path.join(registryDirectory, file));
