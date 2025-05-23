@@ -38,7 +38,14 @@ test('install command should work', async ({ exec, checkInstalledSoftwareOnDisk 
 
   await test.step('playwright install --list', async () => {
     const result = await exec('npx playwright install --list');
-    expect(result).toHaveListedBrowsers(['chromium', 'ffmpeg', 'firefox', 'webkit']);
+    const listed = new Set();
+    const regex = /Browser:\s+([\w-]+)/g;
+    let match;
+    while ((match = regex.exec(result)) !== null) {
+      listed.add(match[1]);
+    }
+    const expected = ['chromium', 'ffmpeg', 'firefox', 'webkit'];
+    expect(new Set(listed)).toEqual(new Set(expected));
   });
 
   await exec('node sanity.js playwright', { env: { PLAYWRIGHT_BROWSERS_PATH: '0' } });
