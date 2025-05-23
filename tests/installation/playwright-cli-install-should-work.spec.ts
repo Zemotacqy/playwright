@@ -44,8 +44,11 @@ test('install command should work', async ({ exec, checkInstalledSoftwareOnDisk 
     while ((match = regex.exec(result)) !== null) {
       listed.add(match[1]);
     }
-    const expected = ['chromium', 'ffmpeg', 'firefox', 'webkit'];
-    expect(new Set(listed)).toEqual(new Set(expected));
+    const expected = ['android', 'chromium', 'ffmpeg', 'firefox', 'webkit'];
+    expected.forEach(browser => {
+      expect(listed.has(browser)).toBe(true);
+    });
+    expect(listed.size).toBe(expected.length);
   });
 
   await exec('node sanity.js playwright', { env: { PLAYWRIGHT_BROWSERS_PATH: '0' } });
