@@ -1043,7 +1043,8 @@ export class Registry {
       await fs.promises.writeFile(path.join(linksDir, calculateSha1(PACKAGE_PATH)), PACKAGE_PATH);
 
       // Remove stale browsers.
-      await this._validateInstallationCache(linksDir);
+      const browserList: Array<{ hostDir: string, browserName: string, browserVersion: number, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
+      await this._deleteStaleBrowsers(browserList);
 
       // Install browsers for this package.
       for (const executable of executables) {
@@ -1108,10 +1109,33 @@ export class Registry {
     }
 
     // Remove stale browsers.
-    await this._validateInstallationCache(linksDir);
+    const browserList: Array<{ hostDir: string, browserName: string, browserVersion: number, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
+    await this._deleteStaleBrowsers(browserList);
+
     return {
       numberOfBrowsersLeft: (await fs.promises.readdir(registryDirectory).catch(() => [])).filter(browserDirectory => isBrowserDirectory(browserDirectory)).length
     };
+  }
+
+  async list() {
+    const linksDir = path.join(registryDirectory, '.links');
+    const browsers: Array<{ browserName: string, browserVersion: number, hostDir: string, browserPath: string }> = await this._traverseBrowserInstallations(linksDir);
+
+    // Group browsers by browserName
+    const groupedBrowsers: Record<string, Array<{ browserVersion: number, hostDir: string, browserPath: string }>> = {};
+
+    browsers.forEach(browser => {
+      if (!groupedBrowsers[browser.browserName])
+        groupedBrowsers[browser.browserName] = [];
+
+      groupedBrowsers[browser.browserName].push({
+        hostDir: browser.hostDir,
+        browserVersion: browser.browserVersion,
+        browserPath: browser.browserPath
+      });
+    });
+
+    return groupedBrowsers;
   }
 
   async validateHostRequirementsForExecutablesIfNeeded(executables: Executable[], sdkLanguage: string) {
@@ -1248,9 +1272,8 @@ export class Registry {
     }
   }
 
-  private async _validateInstallationCache(linksDir: string) {
-    // 1. Collect used downloads and package descriptors.
-    const usedBrowserPaths: Set<string> = new Set();
+  private async _traverseBrowserInstallations(linksDir: string) {
+    const browserList: Array<{ hostDir: string, browserName: string, browserVersion: number, browserPath: string }> = [];
     for (const fileName of await fs.promises.readdir(linksDir)) {
       const linkPath = path.join(linksDir, fileName);
       let linkTarget = '';
@@ -1267,25 +1290,42 @@ export class Registry {
           const descriptor = descriptors.find(d => d.name === browserName);
           if (!descriptor)
             continue;
+
           const usedBrowserPath = descriptor.dir;
           const browserRevision = parseInt(descriptor.revision, 10);
-          // Old browser installations don't have marker file.
-          // We switched chromium from 999999 to 1000, 300000 is the new Y2K.
-          const shouldHaveMarkerFile = (browserName === 'chromium' && (browserRevision >= 786218 || browserRevision < 300000)) ||
-              (browserName === 'firefox' && browserRevision >= 1128) ||
-              (browserName === 'webkit' && browserRevision >= 1307) ||
-              // All new applications have a marker file right away.
-              (browserName !== 'firefox' && browserName !== 'chromium' && browserName !== 'webkit');
-          if (!shouldHaveMarkerFile || (await existsAsync(browserDirectoryToMarkerFilePath(usedBrowserPath))))
-            usedBrowserPaths.add(usedBrowserPath);
+
+          browserList.push({
+            hostDir: linkTarget,
+            browserName,
+            browserVersion: browserRevision,
+            browserPath: usedBrowserPath
+          });
         }
       } catch (e) {
         await fs.promises.unlink(linkPath).catch(e => {});
       }
     }
+    return browserList;
+  }
 
-    // 2. Delete all unused browsers.
+  private async _deleteStaleBrowsers(browserList: Array<{ browserName: string, browserVersion: number, browserPath: string }>) {
     if (!getAsBooleanFromENV('PLAYWRIGHT_SKIP_BROWSER_GC')) {
+      const usedBrowserPaths: Set<string> = new Set();
+      for (const browser of browserList) {
+        const browserName = browser.browserName;
+        const browserRevision = browser.browserVersion;
+        const usedBrowserPath = browser.browserPath;
+        // Old browser installations don't have marker file.
+        // We switched chromium from 999999 to 1000, 300000 is the new Y2K.
+        const shouldHaveMarkerFile = (browserName === 'chromium' && (browserRevision >= 786218 || browserRevision < 300000)) ||
+            (browserName === 'firefox' && browserRevision >= 1128) ||
+            (browserName === 'webkit' && browserRevision >= 1307) ||
+            // All new applications have a marker file right away.
+            (browserName !== 'firefox' && browserName !== 'chromium' && browserName !== 'webkit');
+        if (!shouldHaveMarkerFile || (await existsAsync(browserDirectoryToMarkerFilePath(usedBrowserPath))))
+          usedBrowserPaths.add(usedBrowserPath);
+      }
+
       let downloadedBrowsers = (await fs.promises.readdir(registryDirectory)).map(file => path.join(registryDirectory, file));
       downloadedBrowsers = downloadedBrowsers.filter(file => isBrowserDirectory(file));
       const directories = new Set<string>(downloadedBrowsers);
