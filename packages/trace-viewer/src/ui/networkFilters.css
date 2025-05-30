@@ -24,6 +24,8 @@
 
 .network-filters input[type="search"] {
   padding: 0 5px;
+  min-width: 100px;
+  text-overflow: ellipsis;
 }
 
 .network-filters-resource-types {
@@ -32,13 +34,16 @@
   align-items: center;
 }
 
+.tabbed-pane {
+  min-width: 60px;
+}
+
 .network-filters-resource-type {
   cursor: pointer;
   border-radius: 2px;
   padding: 3px 8px;
   text-align: center;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .network-filters-resource-type.selected {
