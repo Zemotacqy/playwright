@@ -44,9 +44,8 @@ export const NetworkFilters = ({ filterState, onFilterStateChange }: {
   const [tabbedPaneWidth, setTabbedPaneWidth] = useState<number>(80);
 
   // Constants from CSS
-  const CONTAINER_GAP = 16;
-  const RESOURCE_TYPE_GAP = 8;
-  const CONTAINER_PADDING = 16; // 8px padding on each side
+  const CONTAINER_GAP = 0;
+  const RESOURCE_TYPE_GAP = 0;
 
   // Helper to create and measure a DOM element
   const measureElement = (className: string, content: string, minWidth: number): number => {
@@ -83,17 +82,6 @@ export const NetworkFilters = ({ filterState, onFilterStateChange }: {
     setTabbedPaneWidth(measuredTabbedWidth);
   }, [allResourceTypes]);
 
-  // Calculate total width needed including gaps
-  const calculateTotalWidth = (resourceTypes: ResourceType[], includeDropdown = false): number => {
-    const elementWidthsSum = resourceTypes.reduce((sum, type) =>
-      sum + (elementWidths[type] || 0), 0);
-
-    const gapsWidth = Math.max(0, resourceTypes.length - 1) * RESOURCE_TYPE_GAP;
-    const dropdownWidth = includeDropdown ? RESOURCE_TYPE_GAP + tabbedPaneWidth : 0;
-
-    return elementWidthsSum + gapsWidth + dropdownWidth;
-  };
-
   // Get available space for resource types
   const getAvailableSpace = (): number => {
     if (!containerRef.current || !inputRef.current)
@@ -101,39 +89,7 @@ export const NetworkFilters = ({ filterState, onFilterStateChange }: {
 
     return containerRef.current.offsetWidth -
            inputRef.current.offsetWidth -
-           CONTAINER_GAP -
-           CONTAINER_PADDING;
-  };
-
-  // Find maximum visible elements without overflow
-  const findMaxVisibleCount = (availableWidth: number): number => {
-    let visibleCount = 0;
-    for (let i = 0; i <= allResourceTypes.length; i++) {
-      const testVisible = allResourceTypes.slice(0, i);
-      const widthNeeded = calculateTotalWidth(testVisible, false);
-
-      if (widthNeeded <= availableWidth)
-        visibleCount = i;
-      else
-        break;
-    }
-    return visibleCount;
-  };
-
-  // Adjust visible count to account for dropdown space
-  const adjustForDropdown = (visibleCount: number, availableWidth: number): number => {
-    if (visibleCount >= allResourceTypes.length)
-      return visibleCount;
-
-    while (visibleCount > 0) {
-      const visible = allResourceTypes.slice(0, visibleCount);
-      const widthWithDropdown = calculateTotalWidth(visible, true);
-
-      if (widthWithDropdown <= availableWidth)
-        break;
-      visibleCount--;
-    }
-    return visibleCount;
+           CONTAINER_GAP;
   };
 
   // Main redistribution logic
@@ -143,6 +99,48 @@ export const NetworkFilters = ({ filterState, onFilterStateChange }: {
     if (availableWidth <= 0 || Object.keys(elementWidths).length === 0)
       return;
 
+    // Calculate total width needed including gaps
+    const calculateTotalWidth = (resourceTypes: ResourceType[], includeDropdown = false): number => {
+      const elementWidthsSum = resourceTypes.reduce((sum, type) =>
+        sum + (elementWidths[type] || 0), 0);
+
+      const gapsWidth = Math.max(0, resourceTypes.length - 1) * RESOURCE_TYPE_GAP;
+      const dropdownWidth = includeDropdown ? RESOURCE_TYPE_GAP + tabbedPaneWidth : 0;
+
+      return elementWidthsSum + gapsWidth + dropdownWidth;
+    };
+
+    // Find maximum visible elements without overflow
+    const findMaxVisibleCount = (availableWidth: number): number => {
+      let visibleCount = 0;
+      for (let i = 0; i <= allResourceTypes.length; i++) {
+        const testVisible = allResourceTypes.slice(0, i);
+        const widthNeeded = calculateTotalWidth(testVisible, false);
+
+        if (widthNeeded <= availableWidth)
+          visibleCount = i;
+        else
+          break;
+      }
+      return visibleCount;
+    };
+
+    // Adjust visible count to account for dropdown space
+    const adjustForDropdown = (visibleCount: number, availableWidth: number): number => {
+      if (visibleCount >= allResourceTypes.length)
+        return visibleCount;
+
+      while (visibleCount > 0) {
+        const visible = allResourceTypes.slice(0, visibleCount);
+        const widthWithDropdown = calculateTotalWidth(visible, true);
+
+        if (widthWithDropdown <= availableWidth)
+          break;
+        visibleCount--;
+      }
+      return visibleCount;
+    };
+
     let visibleCount = findMaxVisibleCount(availableWidth);
     visibleCount = adjustForDropdown(visibleCount, availableWidth);
 
@@ -151,7 +149,7 @@ export const NetworkFilters = ({ filterState, onFilterStateChange }: {
 
     setVisibleResourceTypes(visible);
     setOverflowResourceTypes(overflow);
-  }, [allResourceTypes, elementWidths]);
+  }, [allResourceTypes, elementWidths, tabbedPaneWidth]);
 
   // Initial measurement and setup
   useEffect(() => {

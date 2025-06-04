@@ -16,7 +16,6 @@
 
 .network-filters {
   display: flex;
-  gap: 16px;
   background-color: var(--vscode-sideBar-background);
   padding: 4px 8px;
   min-height: 32px;
@@ -30,7 +29,6 @@
 
 .network-filters-resource-types {
   display: flex;
-  gap: 8px;
   align-items: center;
 }
 
