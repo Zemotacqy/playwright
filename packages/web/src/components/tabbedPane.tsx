@@ -172,24 +172,28 @@ export const TabbedPane: React.FunctionComponent<{
           {...leftToolbar}
         </div>}
         {visibleTabs.length > 0 && <div style={{ flex: 'auto', display: 'flex', height: '100%', overflow: 'hidden' }} role='tablist'>
-          {[...visibleTabs.map(tab => (
-            <TabbedPaneTab
-              key={tab.id}
-              id={tab.id}
-              ariaControls={`${id}-${tab.id}`}
-              title={tab.title}
-              count={tab.count}
-              errorCount={tab.errorCount}
-              selected={selectedTab === tab.id}
-              onSelect={setSelectedTab}
-            />)),
-          ]}
+          {visibleTabs.map(visibleTab => {
+            const tab = tabs.find(t => t.id === visibleTab.id) || visibleTab;
+            return (
+              <TabbedPaneTab
+                key={tab.id}
+                id={tab.id}
+                ariaControls={`${id}-${tab.id}`}
+                title={tab.title}
+                count={tab.count}
+                errorCount={tab.errorCount}
+                selected={selectedTab === tab.id}
+                onSelect={setSelectedTab}
+              />
+            );
+          })}
         </div>}
         {overflowTabs.length > 0 && <div style={{ flex: 'auto', display: 'flex', height: '100%', overflow: 'hidden' }} role='tablist'>
           <select style={{ width: '100%', background: 'none', cursor: 'pointer' }} value={selectedTab} onChange={e => {
             setSelectedTab?.(overflowTabs[e.currentTarget.selectedIndex].id);
           }}>
-            {overflowTabs.map(tab => {
+            {overflowTabs.map(overflowTab => {
+              const tab = tabs.find(t => t.id === overflowTab.id) || overflowTab;
               let suffix = '';
               if (tab.count)
                 suffix = ` (${tab.count})`;
