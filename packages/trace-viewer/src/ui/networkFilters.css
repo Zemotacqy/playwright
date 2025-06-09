@@ -42,7 +42,7 @@
 }
 
 .network-filters-resource-types .tabbed-pane-tab {
-  min-width: 50px;
+  min-width: 50px !important;
 }
 
 .network-filters-resource-type.selected {

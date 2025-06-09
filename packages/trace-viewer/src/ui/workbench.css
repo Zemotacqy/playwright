@@ -38,3 +38,7 @@
   align-items: center;
   color: var(--vscode-editorCodeLens-foreground);
 }
+
+.workbench .split-view-sidebar .tabbed-pane-tab {
+  min-width: 80px;
+}

@@ -370,7 +370,8 @@ export const Workbench: React.FunctionComponent<{
               setSidebarLocation('bottom');
             }} />
         ]}
-        mode={sidebarLocation === 'bottom' ? 'default' : 'select'}
+        mode='default'
+        overflowMode='select'
       />}
     />
   </div>;
